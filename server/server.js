@@ -1,5 +1,6 @@
 var express = require("express");
-// "body-parser" PARSE the BODY of a 'POST' request as JSON
+/* "body-parser" is used to PARSE the 'request' bodies. So if a 'request' is sent to the server with JSON,
+'body-parser' will CONVERT the string JSON data into a JavaScript Object */
 var bodyParser = require("body-parser");
 
 /* Here we're using the ES6 'Destructuring' feature to PULL OFF the 'moongose' property, essentially we're 
@@ -57,7 +58,7 @@ app.get("/todos", (req, res) => {
     res.send({todos})
   }, e => {
     res.status(400).send(e);
-  })
+  });
 });
 
 app.listen(3000, () => {
