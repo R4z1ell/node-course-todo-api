@@ -43,6 +43,23 @@ app.post("/todos", (req, res) => {
   );
 });
 
+app.get("/todos", (req, res) => {
+  Todo.find().then((todos) => {
+    /* This 'todos' that we're passing is an ARRAY and when we pass BACK an Array we're kind of LOCKING ourself
+    down because if for example we want to ADD another property we CAN'T because we have an Array. The BETTER
+    solution is to CREATE an Object and on that Object SPECIFY 'todos' to be EQUAL to the 'todos' ARRAY with the 
+    ES6 way. THIS will let us ADD other properties LATER ON, so by using an Object INSTEAD of an Array we're 
+    opening ourselves up to a more FLEXIBLE future, with THIS in place our SUCCESS case is good to go.
+    Now if we run our application with the following code 'node .\server\server.js' and then we go on POSTMAN
+    we can SEND a 'GET' request to this URL 'localhost:3000/todos' and we will see that we get back an EMPTY
+    Array because we previously WIPED OUT(cancellat) our ENTIRE Database with the 'beforeEach' function inside
+    the 'server.test.js' file. */
+    res.send({todos})
+  }, e => {
+    res.status(400).send(e);
+  })
+});
+
 app.listen(3000, () => {
   console.log("Started on port 3000");
 });
