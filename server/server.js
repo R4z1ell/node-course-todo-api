@@ -1,4 +1,5 @@
 var express = require("express");
+// "body-parser" PARSE the BODY of a 'POST' request as JSON
 var bodyParser = require("body-parser");
 
 /* Here we're using the ES6 'Destructuring' feature to PULL OFF the 'moongose' property, essentially we're 
@@ -45,3 +46,5 @@ app.post("/todos", (req, res) => {
 app.listen(3000, () => {
   console.log("Started on port 3000");
 });
+
+module.exports = { app };
