@@ -1,6 +1,6 @@
 //copy the link from "To connect using a driver via the standard MongoDB URI" section
 //insert db user name and password here
-const REMOTE_MONGO = "mongodb://<dbuser>:<dbpassword>@ds111319.mlab.com:11319/node-todo-api";
+const REMOTE_MONGO = "mongodb://R4z1ell:123@ds111319.mlab.com:11319/node-todo-api";
 const LOCAL_MONGO = "mongodb://localhost:27017/TodoApp";
 const MONGO_URI = process.env.PORT ? REMOTE_MONGO : LOCAL_MONGO;
 
