@@ -1,4 +1,5 @@
 var express = require("express");
+const { ObjectID } = require("mongodb");
 /* "body-parser" is used to PARSE the 'request' bodies. So if a 'request' is sent to the server with JSON,
 'body-parser' will CONVERT the string JSON data into a JavaScript Object */
 var bodyParser = require("body-parser");
@@ -59,6 +60,33 @@ app.get("/todos", (req, res) => {
   }, e => {
     res.status(400).send(e);
   });
+});
+
+// CHALLENGE
+app.get("/todos/:id", (req, res) => {
+  var id = req.params.id;
+
+  if (!ObjectID.isValid(id)) {
+    /* this 'return' is used to PREVENT ther OTHER code from executing, also the 'send' function is EMPTY so 
+    that we're able to send back an empty BODY */
+    return res.status(404).send();
+  }
+
+  Todo.findById(id).then(
+    todo => {
+      if (!todo) {
+        return res.status(404).send();
+      }  
+      /* Here we're passing the 'todo' as sn OBJECT using the ES6 way(so instead of using the classic 'todo: todo'
+      we can pass just 'todo' because  we have the SAME value for both key and value), we could have passed the 
+      'todo' just WITHOUT the Object(so just passing it as a normal argument like this 'send(todo)') but IF we 
+      pass it INSIDE the Object we would have MORE flexibility so that if we want we could ADD other properties
+      for example like custom status code or anything else */
+      res.send({todo});
+    }).catch(e => {
+      res.status(400).send();
+    });
+
 });
 
 app.listen(3000, () => {
