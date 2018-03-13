@@ -1,5 +1,6 @@
 const expect = require("expect");
 const request = require("supertest");
+const { ObjectID } = require("mongodb");
 
 const { app } = require("./../server");
 const { Todo } = require("./../models/todo");
@@ -19,9 +20,12 @@ the 'todos' we just created here below) and INSERTS all of those documents INTO 
 we're going to need to TWEAK our code inside the 'beforeEach' function below. */
 const todos = [
   {
+    // We've added these '_id' so that in the "GET /todos/:id" describe TEST below we can ACCESS these '_id'
+    _id: new ObjectID(),
     text: "First test todo"
   },
   {
+    _id: new ObjectID(),
     text: "Second test todo"
   }
 ];
@@ -109,3 +113,40 @@ describe("GET /todos", () => {
   });
 });
 
+describe("GET /todos/:id", () => {
+  it("should return todo doc", done => {
+    request(app)
+      /* The '_id' is an 'ObjectID' so we NEED a way to CONVERT it into a STRING, and we can do this with the
+      'toHexString' method that will return our 'ObjectID' as a 24byte STRING representation */
+      .get(`/todos/${todos[0]._id.toHexString()}`)
+      .expect(200)
+      // This below is a 'COMMON Expect'
+      .expect(res => {
+        expect(res.body.todo.text).toBe(todos[0].text);
+      })
+      .end(done);
+  });
+
+  /* In this TEST we're providing a VALID 'ObjectID'(we're creating a new one with the 'new ObjectID' and then 
+  we're converting it to a REAL 'id' so to a STRING) BUT this 'id' will NOT be present in our Database and so 
+  we will throw a 404 status code error */
+  it("should return 404 if todo not found", done => {
+    // Here below we're created a new 'ObjectID' and then CONVERTING it to a STRING
+    var hexId = new ObjectID().toHexString();
+
+    request(app)
+      .get(`/todos/${hexId}`)
+      .expect(404)
+      .end(done);
+  });
+
+  /* In this TEST instead we're passing an INVALID 'ObjectID', so the '123' below that is an INVALID 'ObjectID'
+  because we KNOT that a VALID one has a VERY SPECIFIC structure(it's a 24 byte hex(esadecimale) STRING) and this
+  '123' of course DOESN'T pass that CRITERIA */
+  it("should return 404 for non-object ids", done => {
+    request(app)
+      .get("/todos/123")
+      .expect(404)
+      .end(done);
+  });
+});

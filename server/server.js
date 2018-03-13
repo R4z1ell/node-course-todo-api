@@ -66,6 +66,8 @@ app.get("/todos", (req, res) => {
 app.get("/todos/:id", (req, res) => {
   var id = req.params.id;
 
+  /* This code will FIRE if we pass an INVALID 'ObjectID'(so when the VALUE is in a DIFFERENT format,for example
+  it has a length that is LESS or MORE than the valid one) */
   if (!ObjectID.isValid(id)) {
     /* this 'return' is used to PREVENT ther OTHER code from executing, also the 'send' function is EMPTY so 
     that we're able to send back an empty BODY */
@@ -75,6 +77,7 @@ app.get("/todos/:id", (req, res) => {
   Todo.findById(id).then(
     todo => {
       if (!todo) {
+        // This error will be thrown when we pass a VALID 'ObjectID' BUT it DOESN'T math ANY of our Document 
         return res.status(404).send();
       }  
       /* Here we're passing the 'todo' as sn OBJECT using the ES6 way(so instead of using the classic 'todo: todo'
@@ -85,8 +88,7 @@ app.get("/todos/:id", (req, res) => {
       res.send({todo});
     }).catch(e => {
       res.status(400).send();
-    });
-
+    })
 });
 
 app.listen(3000, () => {
