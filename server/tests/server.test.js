@@ -150,3 +150,53 @@ describe("GET /todos/:id", () => {
       .end(done);
   });
 });
+
+describe("DELETE /todos/:id", () => {
+  it("should remove a todo", done => {
+    var hexId = todos[1]._id.toHexString();
+
+    request(app)
+      .delete(`/todos/${hexId}`)
+      // We're expecting to get a 200 because this 'hexId' is going to EXIST in our Database
+      .expect(200)
+      .expect(res => {
+        expect(res.body.todo._id).toBe(hexId);
+      })
+      .end((err, res) => {
+        if (err) {
+          // We pass the 'err' directly INSIDE the 'done function so that it gets rendered by MOCHA
+          return done(err);
+        }
+
+        // The Document we're trying to find here below is the one that SHOULD have gotten deleted above
+        Todo.findById(hexId)
+          .then(todo => {
+            expect(todo).toNotExist();
+            done();
+          })
+          .catch(e => done(e));
+      });
+  });
+
+  /* In this case this TEST is going to be successfull, because we DON'T have any 'todos' in our Database with 
+  THAT specific 'hexId'(that we're creating here below) and so the 404 status will be CORRECT and our TEST will 
+  PASS correctly */
+  it("should return 404 if todo not found", done => {
+    var hexId = new ObjectID().toHexString();
+
+    request(app)
+      .delete(`/todos/${hexId}`)
+      .expect(404)
+      .end(done);
+  });
+
+  /* In this case instead we're passing an INVALID 'id' inside the URL(we're passing 123 that is an INVALID 'id')
+  and so of course the test will be correct because we're just EXPECTING to get a 404 status, so also this test
+  will PASS correctly */
+  it("should return 404 if ObjectID is invalid", done => {
+    request(app)
+      .delete("/todos/123")
+      .expect(404)
+      .end(done);
+  });
+});
