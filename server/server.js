@@ -1,3 +1,5 @@
+require("./config/config");
+
 const _ = require("lodash");
 const express = require("express");
 const { ObjectID } = require("mongodb");
@@ -14,10 +16,9 @@ var { Todo } = require("./models/todo");
 var { User } = require("./models/user");
 
 var app = express();
-/* The 'process.env.PORT' is the variable that MAY or may NOT be SET. It's going to be set IF the 'app' is
-running on HEROKU, it WON'T be set if it's running LOCALLY(so on port 3000). So IF 'process.env.PORT' is THERE
-we're going to USE it, if it's not we'll use the 'port' 3000 INSTEAD */
-const port = process.env.PORT || 3000;
+/* The 'process.env.PORT' is the variable that MAY or may NOT be SET and it's going to be set IF the 'app' is
+running on HEROKU */
+const port = process.env.PORT;
 
 /* Here below we're setting the MIDDLEWARE, this 'json' method will return a FUNCTION and THAT is the Middleware
 that we NEED to give to 'Express'. With this in place we can now send JSON to our Express application */
@@ -192,6 +193,18 @@ app.patch("/todos/:id", (req, res) => {
     .catch(e => {
       res.status(400).send();
     });
+});
+
+app.post("/users", (req, res) => {
+  var body = _.pick(req.body, ["email", "password"]);
+  var user = new User(body);
+
+  user
+    .save()
+    .then(user => {
+      res.send(user);
+    })
+    .catch(e => res.status(400).send(e));
 });
 
 app.listen(port, () => {

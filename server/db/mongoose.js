@@ -2,7 +2,7 @@
 //insert db user name and password here
 const REMOTE_MONGO = "mongodb://R4z1ell:123@ds111319.mlab.com:11319/node-todo-api";
 const LOCAL_MONGO = "mongodb://localhost:27017/TodoApp";
-const MONGO_URI = process.env.PORT ? REMOTE_MONGO : LOCAL_MONGO;
+let MONGODB_URI = process.env.PORT ? REMOTE_MONGO : LOCAL_MONGO;
 
 const mongoose = require("mongoose");
 
@@ -29,7 +29,7 @@ ever actually TRIES to make the query and THIS is one of the GREAT advantages of
 micromanage the ORDER things happen because 'mongoose' will take care of ALL for us. */
 // mongoose.connect("mongodb://localhost:27017/TodoApp");
 
-mongoose.connect(MONGO_URI).then(
+mongoose.connect(process.env.MONGODB_URI).then(
   () => {
     console.log("Connected to Mongo instance.");
   },
@@ -39,4 +39,6 @@ mongoose.connect(MONGO_URI).then(
 );
 
 //Here we're using the ES6 way to write Object where property and value are the SAME
-module.export = { mongoose };
+module.exports = { mongoose };
+
+
