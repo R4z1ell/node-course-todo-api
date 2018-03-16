@@ -201,8 +201,20 @@ app.post("/users", (req, res) => {
 
   user
     .save()
-    .then(user => {
-      res.send(user);
+    .then(() => {
+      /* we can RETURN it since we know THAT we're expecting a CHAINING promise and we can tack on ANOTHER 'then'
+      Callback where we can pass in the 'token' because THAT is what got returned from 'user.generateAuthToken()'
+      Now we have everything we need to make the response, we have the 'user' and we have the 'token' */
+      return user.generateAuthToken();
+    })
+    .then(token => {
+      /* The 'header' function takes TWO arguments that are key-value pairs, the KEY is the header name and the
+      value is the value we want to set the header to. Our header name is going to 'x-auth', when we PREFIX a
+      header with the 'x-' we create a CUSTOM header which menas it's NOT necessarily a header that HTTP supports
+      by DEFAULT but it's a header that we're using for ouse SPECIFIC purposes, in our application for example 
+      we're using a "Json Token Scheme" so we're creating a CUSTOM header to store THAT value, next up we can 
+      pass the 'token' */
+      res.header("x-auth", token).send(user);
     })
     .catch(e => res.status(400).send(e));
 });
