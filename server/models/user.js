@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
 const _ = require("lodash");
+const bcrypt = require("bcryptjs");
 
 /* This 'userSchema' variable is going to STORE the schema for a User, which means it's going to store ALL the
 properties we have in the 'User' Model below. So inside the 'userSchema' we're going  to create a new SCHEMA, and
@@ -132,6 +133,41 @@ UserSchema.statics.findByToken = function(token) {
     "tokens.access": "auth"
   });
 };
+
+/* This 'pre()' is a moongose MIDDLEWARE(also called 'pre' and 'post' hooks), these Middleware are SPECIFIED on
+the SCHEMA level. The 'pre' hook is going to RUN some code BEFORE a given event, and the event we WANT to run
+code BEFORE is the 'save' event, so BEFORE we ever save the Document to the Database we WANT to make some changes
+to it. Then we use again a REGULAR Function because we are going to need access to the 'this' keyword BINDING,
+and THIS Function is going to get called with the 'next' argument that we HAVE to provide and we HAVE to call it
+somewhere INSIDE the function, if we DON'T provide it and  call it the MIDDLEWARE is NEVER going to complete and
+our program is going to CRASH. */
+UserSchema.pre("save", function(next) {
+  var user = this;
+
+  /* NOW we can go ahead and CHECK if the password was MODIFIED. There is going to be times where we save the
+  Document and we're NEVER going to have updated the password(non avremmo MAI aggiornato la password), which 
+  means that the password will ALREADY be HASHED. Imagine that we saved a Document with a plain text password,
+  THEN the password gets HASHED and later on we UPDATE something that's NOT the password, like the email for
+  example, THIS Middleware is going to run AGAIN and that means we're going to hash our hash and the program is
+  going to BREAK. SO what we're going to do is to use a METHOD called 'isModified' that takes an INDIVIDUAL
+  property like 'password' and returns TRUE or FALSE, it returns TRUE if the password IS modified and returns
+  FALSE if it's not, and we ONLY want to ENCRYPT the password if it was modified, which means we can WRAP the
+  'user.isModified("password")' INSIDE an 'if' statement. */
+  if (user.isModified("password")) {
+    bcrypt.genSalt(10, (err, salt) => {
+      bcrypt.hash(user.password, salt, (err, hash) => {
+        /* Here we're OVERRIDING the 'user.password'(so the PLAIN TEXT password) with the 'hash' in order to
+        properly HIDE the plain text password */
+        user.password = hash;
+        // Then we CALL 'next()' which is going to complete the Middleware and it'll move on to SAVE the Document
+        next();
+      });
+    });
+  } else {
+    // if that statement returns FALSE we simply moving on with the MIDDLEWARE
+    next();
+  }
+});
 
 var User = mongoose.model("User", UserSchema);
 

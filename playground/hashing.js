@@ -4,37 +4,84 @@ this was for playground purposes ONLY(l'abbiamo scaricata solo per sperimentere 
 where used the 'SHA256' function pretty much */
 const { SHA256 } = require("crypto-js");
 const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
 
-var data = {
-  id: 10
-};
+var password = "123abc!";
 
-/* The TWO methods we're going to use from this 'jsonwebtoken' library are the 'sign' and 'verify' methods. The
-'sign' method takes the OBJECT(in our case the 'data' Object where it's stored the 'id' property pretty much, so 
-the user 'id') and SIGN the user, so it creates the HASH and then returns the TOKEN value. The 'verify' method
-INSTEAD does the OPPOSITE, it takes that TOKEN and the SALT and it makes sure that the 'data' Object was NOT
-manipulated. So the 'sign' method as we saw takes the OBJECT(the 'data' object in our case) AND the SALT(called
-also secret) so the "123abc" in our case, the CALL to the 'sign' function will RETURN our TOKEN so we want to 
-store it inside a 'token' variable and THIS would be the value that we'll send BACK to the User when they either
-sign up OR log in, and is ALSO the value that we'll STORE inside of that 'tokens' ARRAY(the 'tokens' property
-we have inside our 'user.js' file, so our User MODEL) where the 'access' property will equal to the string 'off'
-and the 'token' property will EQUAL to 'token' variable we just generated HERE below */
-var token = jwt.sign(data, "123abc");
-/* When we run this file from the terminal we get a LONG string that stores ALL of the information we NEED to
-VERIFY that the 'data' variable(where we have the 'id: 10') was NEVER manipulated. */
-console.log(token);
+/* In order to HASH a password using 'bcryptjs' we have to call TWO methods. One of these two methods is the
+'genSalt' method  that will generate a SALT we can use to SALT our password, the other one is the 'hash' method
+that ACTUALLY goes through the hashing PROCESS. The 'genSalt' method(that is an ASYNCHRONOUS Function, so it
+"asynchronously" generates a SALT) takes TWO arguments, the first argument is the number of ROUNDS we want to use 
+to generate the SALT(in our case we're going to use 10 as the number or Rounds, the BIGGER is this number the 
+LONGER the algorithm is going to TAKE) and the second argument is a CALLBACK Function where we ACTUALLY are going
+to DO the hashing */
+// bcrypt.genSalt(10, (err, salt) => {
+//   /* The 'hash' method takes THREE arguments, the FIRST one is the thing we want to hash(so in our case is the
+//   'password' variable we defined above) the SECOND is the SALT to use(and this SALT is just what got generated
+//   by the 'genSalt' method) and the THIRD argument is the CALLBACK Function that gets called with an 'err' and a
+//   'hash' value and THIS 'hash' is what we want to STORE inside our Database(we DON'T want to store the 'password'
+//   but we want to store the 'hash'). So with this in pace we can now run this file from the terminal, what we
+//   get is a LONG 'hash' value, this value has a LOT of really awesome information stored inside of it. Has the 
+//   number of ROUNDS we used, has the length for the 'hash' AND the 'salt', so ALL that information is stored right
+//   inside, there is no reason to have a 'salt' AND a 'password' into the Database when we can have both combined
+//   pretty much. This is why 'bcrypt' is so fantastic, the 'salt' is built IN and there is NOTHING to worry about 
+//   in terms of storing a separate value, NOW that we have this 'hash' we can actually COMPRARE if this 'hash'
+//   EQUALS the plain text 'password' and THIS is what we're going to do when someone LOGS IN. */
+//   bcrypt.hash(password, salt, (err, hash) => {
+//     console.log(hash);
+//   });
+// });
 
-/* By using the 'verify' function(where we pass the 'token' and the 'secret', this secret MUST be the same we
-used inside the 'token' otherwise it will NOT be validated) we get the DECODED result. */ 
-var decoded = jwt.verify(token, "123abc");
-/* When we run this file again we will get back 'decoded { id: 10, iat: 1521178173 }', IF we try to modify 
-something inside the 'decoded' variable, so for example we modify the SECRET we will get back an ERROR in the
-terminal. So ONLY when the 'token' ins UNALTERATED and the SECRET is the SAME as the one we used to create the
-token itself we're going to get back our DATA and this is EXACTLY what we want. ONCE we DECODE the 'data' after
-the person makes the request with the 'token', we can use THAT 'id' to start actually doing the thing that the
-user wants to do(like updating or creating or deleting a 'todo' and so on), so ONLY after the user it's been
-VERIFIED we'll let him do what he wants to do inside our application  */
-console.log("decoded", decoded);
+// This long value is the just the 'hash' we got from the 'console.log(hash)' we have above inside the 'genSalt'
+var hashedPassword =
+  "$2a$10$eVVBmcF1q4/jTvrAKiNkNugLXOD.FSsSTNMv5HlaRvIC0Jw0ozCmW";
+
+/*Now we want to COMPRARE this 'hashedPassword' with the 'password' and for doing this we'll use the 'comprare'
+method of the 'bcryptjs' library. 'compare' will take these TWO values and it will let's us know IF they EQUAL 
+each other, 'compare' takes THREE arguments, the FIRST argument is the plain password that is stored in the 
+'password' variable and the SECOND argument is the hashed value and we have it stored inside the 'hashedPassword' 
+variable, the THIRD argument is simply a CALLBACK Function that may get called with an 'err' and a 'res', the
+'res' is either TRUE or FALSE, it's TRUE if the 'password' matches the 'hashedPassword' and it's FALSE if they
+do NOT equal each other. Now with this in place we can RUN this file from the terminal and what we get back is
+TRUE, so we're getting true because the 'password'(123abc!) DOES indeed equal the 'hashedPassword' variable. Now
+if we were to change the 'password' to something ELSE this is going to result in FALSE. So THIS is what we're
+going to do when we LOGGIN a User, we're going to FETCH the value out of the Database(so the 'hashedPassword'
+value pretty much) and COMPRARE it to the plain text password the User GAVE us and THEN we'll be able to use the
+'res' variable to DETERMINE whether or not the 'password' was CORRECT  */
+bcrypt.compare(password, hashedPassword, (err, res) => {
+  console.log(res);
+});
+
+// var data = {
+//   id: 10
+// };
+
+// /* The TWO methods we're going to use from this 'jsonwebtoken' library are the 'sign' and 'verify' methods. The
+// 'sign' method takes the OBJECT(in our case the 'data' Object where it's stored the 'id' property pretty much, so
+// the user 'id') and SIGN the user, so it creates the HASH and then returns the TOKEN value. The 'verify' method
+// INSTEAD does the OPPOSITE, it takes that TOKEN and the SALT and it makes sure that the 'data' Object was NOT
+// manipulated. So the 'sign' method as we saw takes the OBJECT(the 'data' object in our case) AND the SALT(called
+// also secret) so the "123abc" in our case, the CALL to the 'sign' function will RETURN our TOKEN so we want to
+// store it inside a 'token' variable and THIS would be the value that we'll send BACK to the User when they either
+// sign up OR log in, and is ALSO the value that we'll STORE inside of that 'tokens' ARRAY(the 'tokens' property
+// we have inside our 'user.js' file, so our User MODEL) where the 'access' property will equal to the string 'off'
+// and the 'token' property will EQUAL to 'token' variable we just generated HERE below */
+// var token = jwt.sign(data, "123abc");
+// /* When we run this file from the terminal we get a LONG string that stores ALL of the information we NEED to
+// VERIFY that the 'data' variable(where we have the 'id: 10') was NEVER manipulated. */
+// console.log(token);
+
+// /* By using the 'verify' function(where we pass the 'token' and the 'secret', this secret MUST be the same we
+// used inside the 'token' otherwise it will NOT be validated) we get the DECODED result. */
+// var decoded = jwt.verify(token, "123abc");
+// /* When we run this file again we will get back 'decoded { id: 10, iat: 1521178173 }', IF we try to modify
+// something inside the 'decoded' variable, so for example we modify the SECRET we will get back an ERROR in the
+// terminal. So ONLY when the 'token' ins UNALTERATED and the SECRET is the SAME as the one we used to create the
+// token itself we're going to get back our DATA and this is EXACTLY what we want. ONCE we DECODE the 'data' after
+// the person makes the request with the 'token', we can use THAT 'id' to start actually doing the thing that the
+// user wants to do(like updating or creating or deleting a 'todo' and so on), so ONLY after the user it's been
+// VERIFIED we'll let him do what he wants to do inside our application  */
+// console.log("decoded", decoded);
 
 // var message = "I am user number 3";
 // /* The result of this 'SHA256' function is an Object so we're going to CONVERT it to a STRING using the
