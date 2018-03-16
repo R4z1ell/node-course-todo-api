@@ -72,7 +72,12 @@ Document which is GREAT because we NEED that information in ORDER to create our 
 UserSchema.methods.generateAuthToken = function() {
   /* In this case we're NOT using an Arrow function because we NEED to bind the 'this' keyword and Arrow function
   do NOT let us bind it to anything, so we just use REGULAR function and we BIND the 'this' keyword to the 'user'
-  variable. */
+  variable. NOW because we've binded the 'user' to the 'this' keyword when we're going to use this
+  'generateAuthToken' method INSIDE the 'server.js' file we will have ACCESS to ALL the 'user' information(like 
+  the '_id' property for example) and we also DON'T need to pass ANY argument when we canll this
+  'generateAuthToken' function ALSO for this exact reason, because we've access to the 'this' keyword that is
+  binded to the 'user' variable so it POINTS always to the 'user' Object that get created in the 'server.js' file
+  */
   var user = this;
   var access = "auth";
   var token = jwt
@@ -86,6 +91,45 @@ UserSchema.methods.generateAuthToken = function() {
   as the SUCCESS argument for the NEXT 'then' call */
   return user.save().then(() => {
     return token;
+  });
+};
+
+/* 'statics'(a mongoose method)is an OBJECT kind of like 'methods' although everything we ADD onto it turns into
+a MODEL method as opposed to an INSTANCE method. 'findByToken' is going to be a REGULAR Function(so using the
+'function' keyword) because once again we NEED access to the 'this' keyword BINDING, in THIS case though we 
+bind the 'this' keyword to the 'User' because INSTANCE method(like the 'generateAuthToken' we have above) gets
+called with the INDIVIDUAL Document(so we bind 'user' to the 'this' keyword) instead MODEL methods gets called
+with the MODEL(so the 'User') as the 'this' binding */
+UserSchema.statics.findByToken = function(token) {
+  var User = this;
+  /* This 'decoded' variable is going to store the DECODED 'Json Web Token' VALUE but for now is set to 
+  'undefined' because the 'jwt.verify()' function is going to throw an ERROR if anything goes wrong, if the 
+  SECRET doesn't match the SECRET that the token was created with OR if the token value was MANIPULATED, that 
+  means we want to be able to CATCH this error and do something with it. To do this we're going to use a 
+  'try catch' BLOCK like below  */
+  var decoded;
+
+  /* If ANY error happen in the 'try' BLOCK the code automatically STOPS executing and moves into the 'catch'
+  block, it lets us run some code there(in the 'catch') and THEN it continues on with our program */
+  try {
+    decoded = jwt.verify(token, "abc123");
+  } catch (e) {
+    return Promise.reject();
+  }
+
+  /* If we're able to SUCCESSFULLY decode the 'token' that was passed in as the HEADER we're going to call the
+  'findOne' method to FIND the associated 'user' if ANY. Now this 'User.findOne' is going to return a PROMISE so
+  we're going to RETURN it in order to ADD some chaining*/
+  return User.findOne({
+    _id: decoded._id,
+    /* We need to find a 'user' WHOSE 'tokens' Array has an Object where the 'token' property EQUALS the 'token'
+    property we have RIGHT here in this function('function(token)', this 'token' we take as argument pretty much).
+    To query a NESTED document what we're going to do is to WRAP our value inside QUOTES(so like below where we
+    have "tokens.token"). We're going to do the exact SAME thing for the 'access' property where "tokens.access"
+    will be set to the "auth" STRING, so pretty much when we TRY to access a NESTED value(so when we need to
+    use the DOT notation like "tokens.token" for example) we NEED to WRAP this inside QUOTES */
+    "tokens.token": token,
+    "tokens.access": "auth"
   });
 };
 
