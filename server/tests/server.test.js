@@ -267,13 +267,15 @@ describe("POST /users", () => {
         }
 
         // In this case we're ACTUALLY fetching a 'user' from OUR Database
-        User.findOne({ email }).then(user => {
-          expect(user).toExist();
-          /* Here we expect that the 'user.password' does NOT equal the 'password' we used(the 'password' variable
+        User.findOne({ email })
+          .then(user => {
+            expect(user).toExist();
+            /* Here we expect that the 'user.password' does NOT equal the 'password' we used(the 'password' variable
           we defined ABOVE) since it should have been HASHED */
-          expect(user.password).toNotBe(password);
-          done();
-        });
+            expect(user.password).toNotBe(password);
+            done();
+          })
+          .catch(e => done(e));
       });
   });
 
@@ -305,5 +307,66 @@ describe("POST /users", () => {
       })
       .expect(400)
       .end(done);
+  });
+});
+
+describe("POST /users/login", () => {
+  it("should login user and return auth token", done => {
+    request(app)
+      .post("/users/login")
+      .send({
+        email: users[1].email,
+        password: users[1].password
+      })
+      .expect(200)
+      .expect(res => {
+        expect(res.headers["x-auth"]).toExist();
+      })
+      .end((err, res) => {
+        if (err) {
+          return done(err);
+        }
+
+        User.findById(users[1]._id)
+          .then(user => {
+            expect(user.tokens[0]).toInclude({
+              access: "auth",
+              token: res.headers["x-auth"]
+            });
+            done();
+          })
+          .catch(e => done(e));
+      });
+  });
+
+  it("should reject invalid login", done => {
+    request(app)
+      .post("/users/login")
+      .send({
+        email: users[1].email,
+        /* Because we're expecting to have INVALID data we just send an INVALID 'password' where we've added this
+        value "1" pretty much to make the previous VALID password and INVALID one */
+        password: users[1].password + "1"
+      })
+      .expect(400)
+      .expect(res => {
+        // Because we're passing INVALID Data we're expect that the 'x-auth' DOESN'T exist
+        expect(res.headers["x-auth"]).toNotExist();
+      })
+      .end((err, res) => {
+        if (err) {
+          return done(err);
+        }
+
+        User.findById(users[1]._id)
+          .then(user => {
+            /* Here we expect that the LENGTH of the "tokens" array will be zero because of coure we DON'T have
+            an "access"(because we're NOT authenticated) property and we ALSO don't have a 'token'(because the 
+            'password' we passed in was INVALID) property, so in the end we expect to have an EMPTY Array */
+            expect(user.tokens.length).toBe(0);
+            done();
+          })
+          .catch(e => done(e));
+      });
   });
 });
