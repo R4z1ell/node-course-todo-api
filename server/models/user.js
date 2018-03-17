@@ -134,6 +134,46 @@ UserSchema.statics.findByToken = function(token) {
   });
 };
 
+/* This 'findByCredentials' function will take an 'email' and 'password' as arguments, then it will od his things
+and RETURN a PROMISE with an 'user'(if things go well) OR an 'error'(if the 'user' didn't exist) */
+UserSchema.statics.findByCredentials = function(email, password) {
+  var User = this;
+
+  /* Here we're trying to FIND in our Database a user where the email EQUALS the 'email' that was passed in as 
+  argument inside THIS function. Now would be nice if we could do that for BOTH 'email' AND 'password' BUT we
+  CAN'T because we have just the PLAIN TEXT 'password' and we DON'T have the 'password' that is ACTUALLY stored
+  in the Database. In order to find a POTENTIAL match we're just going to find the user that has a MATCHING email
+  with the email that we pass in this function(so pretty much we CAN'T query our Database for BOTH email and
+  password and we ONLY check the email because as we've seen we can't do this for the password because we ONLY 
+  have the plain text password BUT in our database we have the HASHED one stored). We're also RETURNING this
+  'User.findOne' below BECAUSE in the Route inside the 'server.js' file we're CHAINING a 'then' call so we NEED
+  to return a PROMISE here pretty much. In the case we DON'T have a 'user' we're going to return a REJECTED 
+  Promise and this will AUTOMATICALLY trigger the 'catch' case inside our "LOGGIN" Route in the 'server.js' file
+  where we respond with an ERROR */
+
+  return User.findOne({ email }).then(user => {
+    if (!user) {
+      return Promise.reject();
+    }
+
+    /* The problem we're goin to run into HERE below in our case is that the 'bcrypt' methods we're going to use
+    ONLY support Callbacks Functions and NOT Promises, so because we WANT to keep using Promises we're going to
+    RETURN a NEW Promise where we provide 'resolve'(if it's a success) and 'reject'(if it's NOT a success) and
+    NOW inside this Promise we can do what we want, in our case we're going to use 'bcrypt.compare' to COMPARE
+    the 'password' we're passing as argument in in THIS 'findByCredentials' function AND the 'user.password'
+    property */
+    return new Promise((resolve, reject) => {
+      bcrypt.compare(password, user.password, (err, res) => {
+        if (res) {
+          resolve(user);
+        } else {
+          reject();
+        }
+      });
+    });
+  });
+};
+
 /* This 'pre()' is a moongose MIDDLEWARE(also called 'pre' and 'post' hooks), these Middleware are SPECIFIED on
 the SCHEMA level. The 'pre' hook is going to RUN some code BEFORE a given event, and the event we WANT to run
 code BEFORE is the 'save' event, so BEFORE we ever save the Document to the Database we WANT to make some changes

@@ -196,6 +196,7 @@ app.patch("/todos/:id", (req, res) => {
     });
 });
 
+// 'SIGN UP' Route
 app.post("/users", (req, res) => {
   var body = _.pick(req.body, ["email", "password"]);
   var user = new User(body);
@@ -222,6 +223,30 @@ app.post("/users", (req, res) => {
 
 app.get("/users/me", authenticate, (req, res) => {
   res.send(req.user);
+});
+
+/* This ROUTE below is going to be a DEDICATED Route for logging in EXISTING users. Currently the ONLY way we
+ca get an 'x-auth' token BACK is by using the 'SIGN UP' call(the 'Sign Up' Route above), so if we LOSE the token
+OR we sign in from a DIFFERENT device obviously we WANT to be able to get a NEW one and currently this is just 
+NOT possible. We can't make another call to the 'SIGN UP' Route because the 'email' ALREADY exists so the call is
+going to return a 400, so what we NEED is a DEDICATED Route for logging in users. Also we're NOT passing in the
+'authenticate' middleware because we DON'T have a token but we're trying to get one, that is the WHOLE purposes
+of THIS call. */
+app.post("/users/login", (req, res) => {
+  /* We're going to need to FIND a user INSIDE the 'user' Collection we have on our MongoDB Database who has an
+ 'email' MATCHING the 'email' we sent in and has a HASHED 'password' that EQUALS the plain text 'password' when
+ passed THROUGH the 'bcrypt' method we used inside the 'hashing.js' file. There we used the 'bcrypt.compare' 
+ method to COMPARE a plain text 'password' with a HASH value, and THAT is EXACTLY what we're going to do now
+ to make this Route WORK */
+  var body = _.pick(req.body, ["email", "password"]);
+
+  User.findByCredentials(body.email, body.password).then(user => {
+    return user.generateAuthToken().then(token => {
+      res.header("x-auth", token).send(user);
+    });
+  }).catch(e => {
+    res.status(400).send();
+  });
 });
 
 app.listen(port, () => {
