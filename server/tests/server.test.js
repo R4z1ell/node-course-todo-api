@@ -4,33 +4,8 @@ const { ObjectID } = require("mongodb");
 
 const { app } = require("./../server");
 const { Todo } = require("./../models/todo");
-
-/* BEFORE we can actually write the test for the 'GET /todos'(the one we have all the way below) we have to deal
-witha a problem. The FIRST thing we do inside the 'beforeEach' function is to DELETE everything from the Database
-,so we're removing ALL the "todos" and this happens before EACH test. Now, the 'get /todos' ROUTE inside the
-'server.js' file pretty much LIVES OFF the fact that there are "todos" that he CAN return, it will handle the
-case where we have NO "todos" BUT in our case we DO want some data in the Database. In order to ADD this Data 
-we're going to MODIFY the 'beforeEach' function by ADDING some 'Seed' Data, this means that our Database is STILL
-going to be predictable(so it will ALWAYS look the same when we start the server) BUT we will have SOME items
-in it. Now in order to do that the FIRST thing that we're going to do is make a NEW Array of "dummy" todos, these
-todos ONLY need the 'text' property since EVERYTHING else will be populated by mangoose. So we create this 'todos'
-Array below with TWO "dummy" elements in it, BEFORE we can actually write our TEST we have to MODIFY the
-'beforeEach' method using a brand new METHOD of mongoose called 'insertMany' which takes an ARRAY(so exactly like
-the 'todos' we just created here below) and INSERTS all of those documents INTO our Collection. This means that
-we're going to need to TWEAK our code inside the 'beforeEach' function below. */
-const todos = [
-  {
-    // We've added these '_id' so that in the "GET /todos/:id" describe TEST below we can ACCESS these '_id'
-    _id: new ObjectID(),
-    text: "First test todo"
-  },
-  {
-    _id: new ObjectID(),
-    text: "Second test todo",
-    completed: true,
-    completedAt: 333
-  }
-];
+const { User } = require("./../models/user");
+const { todos, populateTodos, users, populateUsers } = require("./seed/seed");
 
 /* Here below we're using the 'beforeEahc' method of MOCHA, this function will run BEFORE each test we have in
 this file. So we're going to be able to run some code BEFORE every single test case, in our case we're going to
@@ -40,13 +15,8 @@ move ON to the NEXT test case ONCE we called 'done', which means we can do somet
 native, ALL we have to do is passing an EMPRY Object and this is going to WIPE ALL our "todos" from the Database.
 With THIS in place our Database is going to be EMPTY before EACH request and NOW our assumption(the one that
 we're STARTING with zero "todos", so with an EMPTY Database pretty much) is CORRECT */
-beforeEach(done => {
-  Todo.remove({})
-    .then(() => {
-      return Todo.insertMany(todos);
-    })
-    .then(() => done());
-});
+beforeEach(populateUsers);
+beforeEach(populateTodos);
 
 describe("POST /todos", () => {
   it("should create a new todo", done => {
@@ -210,10 +180,10 @@ describe("PATCH /todos/:id", () => {
 
     request(app)
       .patch(`/todos/${hexId}`)
-      .send({ 
+      .send({
         completed: true,
-        text 
-       })
+        text
+      })
       .expect(200)
       .expect(res => {
         expect(res.body.todo.text).toBe(text);
@@ -229,16 +199,111 @@ describe("PATCH /todos/:id", () => {
 
     request(app)
       .patch(`/todos/${hexId}`)
-      .send({ 
+      .send({
         completed: false,
-        text 
-       })
+        text
+      })
       .expect(200)
       .expect(res => {
         expect(res.body.todo.text).toBe(text);
         expect(res.body.todo.completed).toBe(false);
         expect(res.body.todo.completedAt).toNotExist();
       })
+      .end(done);
+  });
+});
+
+describe("GET /users/me", () => {
+  it("should return user if authenticated", done => {
+    request(app)
+      .get("/users/me")
+      /* To SET a 'header' in "Supertest" we use the 'set()' method and it takes TWO arguments, this FIRST is 
+      the 'header' NAME('x-auth' in our case) and the SECOND argument is the 'header' VALUE */
+      .set("x-auth", users[0].tokens[0].token)
+      .expect(200)
+      .expect(res => {
+        /* we're expecting that the '_id' that comes back from the 'body' should be the '_id' of the 'user' 
+        whose 'token' we supplied */
+        expect(res.body._id).toBe(users[0]._id.toHexString());
+        expect(res.body.email).toBe(users[0].email);
+      })
+      .end(done);
+  });
+
+  it("should return 401 if not authenticated", done => {
+    request(app)
+      .get("/users/me")
+      .expect(401)
+      .expect(res => {
+        // Here below we're expecting that the 'res.body' is equal to an EMPTY Object
+        expect(res.body).toEqual({});
+      })
+      .end(done);
+  });
+});
+
+describe("POST /users", () => {
+  /* This call will TEST what happens when we pass in VALID Data, SO a valid 'email'(that is NOT already in use)
+  and a VALID 'password' that the user created */
+  it("should create a user", done => {
+    var email = "example@example.com";
+    var password = "123mnb!";
+
+    request(app)
+      .post("/users")
+      .send({ email, password })
+      .expect(200)
+      .expect(res => {
+        /* In THIS case we need to use the BRACKETS notation(so this []) and NOT the dot notation(so this '.') 
+        because our header name 'x-auth' CONTAINS an hyphen(this symbol '-') which will be INVALID if we use the
+        dot notation */
+        expect(res.headers["x-auth"]).toExist();
+        expect(res.body._id).toExist();
+        expect(res.body.email).toBe(email);
+      })
+      .end(err => {
+        if (err) {
+          return done(err);
+        }
+
+        // In this case we're ACTUALLY fetching a 'user' from OUR Database
+        User.findOne({ email }).then(user => {
+          expect(user).toExist();
+          /* Here we expect that the 'user.password' does NOT equal the 'password' we used(the 'password' variable
+          we defined ABOVE) since it should have been HASHED */
+          expect(user.password).toNotBe(password);
+          done();
+        });
+      });
+  });
+
+  /* This call instead will TEST that when we pass in an INVALID 'email' or a 'password' that is NOT at least 
+  of six characters, the user DOESN'T get created */
+  it("should return validation errors if request invalid", done => {
+    /* In this case we're expecting this TEST to PASS if we use INVALID Data, so if we pass an invalid 'password'
+    (so a password that has LESS than six characters) AND an invalid 'email', and SO below here we just created 
+    those two invalid data inside the 'send' function */
+    request(app)
+      .post("/users")
+      .send({
+        email: "and",
+        password: "123"
+      })
+      .expect(400)
+      .end(done);
+  });
+
+  /* In this test we're going to use an 'email' that's ALREADY in use, which means that we're going to TRY to
+  sign up using one of the TWO 'emails' we've used in our SEED Data(so the email we've used inside the 'users'
+  ARRAY in the 'seed.js' file, so we must use below one of these two "andrew@example.com" or "jen@example.com") */
+  it("should not create user if email in use", done => {
+    request(app)
+      .post("/users")
+      .send({
+        email: users[0].email,
+        password: "Password123!"
+      })
+      .expect(400)
       .end(done);
   });
 });
