@@ -95,6 +95,20 @@ UserSchema.methods.generateAuthToken = function() {
   });
 };
 
+UserSchema.methods.removeToken = function(token) {
+  var user = this;
+
+  /* This '$pull' MongoDB Operator let us REMOVE items from an ARRAY that match certain criteria. We're also
+  returning this 'user.update' so that we can CHAIN the call that we've already set up over inside the 'server.js'
+  file, so the 'then()' call we have INSIDE the 'app.delete("/users/me/token")' ROUTE pretty much.
+  */
+  return user.update({
+    $pull: {
+      tokens: { token }
+    }
+  });
+};
+
 /* 'statics'(a mongoose method)is an OBJECT kind of like 'methods' although everything we ADD onto it turns into
 a MODEL method as opposed to an INSTANCE method. 'findByToken' is going to be a REGULAR Function(so using the
 'function' keyword) because once again we NEED access to the 'this' keyword BINDING, in THIS case though we 

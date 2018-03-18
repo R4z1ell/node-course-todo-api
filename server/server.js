@@ -240,13 +240,28 @@ app.post("/users/login", (req, res) => {
  to make this Route WORK */
   var body = _.pick(req.body, ["email", "password"]);
 
-  User.findByCredentials(body.email, body.password).then(user => {
-    return user.generateAuthToken().then(token => {
-      res.header("x-auth", token).send(user);
+  User.findByCredentials(body.email, body.password)
+    .then(user => {
+      return user.generateAuthToken().then(token => {
+        res.header("x-auth", token).send(user);
+      });
+    })
+    .catch(e => {
+      res.status(400).send();
     });
-  }).catch(e => {
-    res.status(400).send();
-  });
+});
+
+// "LOG OUT" Route
+app.delete("/users/me/token", authenticate, (req, res) => {
+  // Inside this Route we're pretty much DELETING the 'token' of an user AFTER we've correctly AUTHENTICATED it
+  req.user.removeToken(req.token).then(
+    () => {
+      res.status(200).send();
+    },
+    () => {
+      res.status(400).send();
+    }
+  );
 });
 
 app.listen(port, () => {
