@@ -17,7 +17,10 @@ const users = [
         access: "auth",
         /* Remember that we HAVE to provide the exact SAME 'secret' we used in the 'generateAuthToken' function
         inside the 'user.js' file, and that 'secret' was 'abc123' so we put it down here */
-        token: jwt.sign({ _id: userOneId, access: "auth" }, "abc123").toString()
+        token: jwt
+          // 'process.env.JWT_SECRET' is what we defined inside the 'config.json' file 
+          .sign({ _id: userOneId, access: "auth" }, process.env.JWT_SECRET)
+          .toString()
       }
     ]
   },
@@ -28,7 +31,9 @@ const users = [
     tokens: [
       {
         access: "auth",
-        token: jwt.sign({ _id: userTwoId, access: "auth" }, "abc123").toString()
+        token: jwt
+          .sign({ _id: userTwoId, access: "auth" }, process.env.JWT_SECRET)
+          .toString()
       }
     ]
   }
