@@ -20,7 +20,7 @@ var UserSchema = new mongoose.Schema({
     minlength: 1,
     trim: true,
     /* This 'unique' property we can be set either to TRUE or FALSE verifies that the 'email' property doesn't
-      have the SAME value as any other Documents in the Collection. So image that we're signign up(ci stiamo 
+      have the SAME value as any other Documents in the Collection. So image that we're signing up(ci stiamo 
       registrando) for a NEW account with an email that's ALREADY in use, it WOULD pass IF we had this 'unique'
       property set to FALSE(which is the DEFAULT value) BUT when we set it to TRUE(like in our case) we WON'T be
       able to have TWO Documents with the SAME email */

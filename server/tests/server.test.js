@@ -370,3 +370,29 @@ describe("POST /users/login", () => {
       });
   });
 });
+
+/* In this 'describe' block we're going to TEST that when we SEND across a 'token' it get REMOVED from the 
+'users' Collection we have in our Database. */
+describe("DELETE /users/me/token", () => {
+  /* This test is going to make sure that when a VALID 'x-auth' token gets passed across the log out METHOD it
+  ACTUALLY does get log out */
+  it("should remove auth token on logout", done => {
+    request(app)
+      .delete("/users/me/token")
+      // Here we're SETTING this 'x-auth' to have a value equal to 'users[0].tokens[0].token'
+      .set("x-auth", users[0].tokens[0].token)
+      .expect(200)
+      .end((err, res) => {
+        if (err) {
+          return done(err);
+        }
+
+        User.findById(users[0]._id)
+          .then(user => {
+            expect(user.tokens.length).toBe(0);
+            done();
+          })
+          .catch(e => done(e));
+      });
+  });
+});
