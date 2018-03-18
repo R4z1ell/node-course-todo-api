@@ -170,7 +170,7 @@ describe("DELETE /todos/:id", () => {
         // The Document we're trying to find here below is the one that SHOULD have gotten deleted above
         Todo.findById(hexId)
           .then(todo => {
-            expect(todo).toNotExist();
+            expect(todo).toBeFalsy();
             done();
           })
           .catch(e => done(e));
@@ -203,7 +203,7 @@ describe("DELETE /todos/:id", () => {
             /* Here we're expecting our 'todo'(so the one we tried to REMOVE) to STILL exist, this because our
             ATTEMPT to remove the FIRST 'todo' should have FAILED because we're NOT logged in as the user who
             CREATED that 'todo', and so we EXPECT this FIRST 'todo' to EXIST */
-            expect(todo).toExist();
+            expect(todo).toBeTruthy();
             done();
           })
           .catch(e => done(e));
@@ -251,7 +251,8 @@ describe("PATCH /todos/:id", () => {
       .expect(res => {
         expect(res.body.todo.text).toBe(text);
         expect(res.body.todo.completed).toBe(true);
-        expect(res.body.todo.completedAt).toBeA("number");
+        // expect(res.body.todo.completedAt).toBeA("number");
+        expect(typeof res.body.todo.completedAt).toBe("number");
       })
       .end(done);
   });
@@ -286,7 +287,7 @@ describe("PATCH /todos/:id", () => {
       .expect(res => {
         expect(res.body.todo.text).toBe(text);
         expect(res.body.todo.completed).toBe(false);
-        expect(res.body.todo.completedAt).toNotExist();
+        expect(res.body.todo.completedAt).toBeFalsy();
       })
       .end(done);
   });
@@ -336,8 +337,8 @@ describe("POST /users", () => {
         /* In THIS case we need to use the BRACKETS notation(so this []) and NOT the dot notation(so this '.') 
         because our header name 'x-auth' CONTAINS an hyphen(this symbol '-') which will be INVALID if we use the
         dot notation */
-        expect(res.headers["x-auth"]).toExist();
-        expect(res.body._id).toExist();
+        expect(res.headers["x-auth"]).toBeTruthy();
+        expect(res.body._id).toBeTruthy();
         expect(res.body.email).toBe(email);
       })
       .end(err => {
@@ -348,10 +349,10 @@ describe("POST /users", () => {
         // In this case we're ACTUALLY fetching a 'user' from OUR Database
         User.findOne({ email })
           .then(user => {
-            expect(user).toExist();
-            /* Here we expect that the 'user.password' does NOT equal the 'password' we used(the 'password' variable
-          we defined ABOVE) since it should have been HASHED */
-            expect(user.password).toNotBe(password);
+            expect(user).toBeTruthy();
+            /* Here we expect that the 'user.password' does NOT equal the 'password' we used(the 'password' 
+            variable we defined ABOVE) since it should have been HASHED */
+            expect(user.password).not.toBe(password);
             done();
           })
           .catch(e => done(e));
@@ -399,7 +400,7 @@ describe("POST /users/login", () => {
       })
       .expect(200)
       .expect(res => {
-        expect(res.headers["x-auth"]).toExist();
+        expect(res.headers["x-auth"]).toBeTruthy();
       })
       .end((err, res) => {
         if (err) {
@@ -408,7 +409,10 @@ describe("POST /users/login", () => {
 
         User.findById(users[1]._id)
           .then(user => {
-            expect(user.tokens[1]).toInclude({
+            /* The 'toMatchObject' method(from the 'expect' library) let us CHECK if a JavaScript Object MATCHES
+            a subset(sottoinsieme) of the properties of another object. In our case we're trying to CHECK if 
+            this 'user.tokens[1]' OBJECT has the 'access' AND 'token' properties */
+            expect(user.toObject().tokens[1]).toMatchObject({
               access: "auth",
               token: res.headers["x-auth"]
             });
@@ -430,7 +434,7 @@ describe("POST /users/login", () => {
       .expect(400)
       .expect(res => {
         // Because we're passing INVALID Data we're expect that the 'x-auth' DOESN'T exist
-        expect(res.headers["x-auth"]).toNotExist();
+        expect(res.headers["x-auth"]).toBeFalsy();
       })
       .end((err, res) => {
         if (err) {
