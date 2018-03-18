@@ -24,7 +24,13 @@ const users = [
   {
     _id: userTwoId,
     email: "jen@example.com",
-    password: "userTwoPass"
+    password: "userTwoPass",
+    tokens: [
+      {
+        access: "auth",
+        token: jwt.sign({ _id: userTwoId, access: "auth" }, "abc123").toString()
+      }
+    ]
   }
 ];
 
@@ -45,13 +51,15 @@ const todos = [
   {
     // We've added these '_id' so that in the "GET /todos/:id" describe TEST below we can ACCESS these '_id'
     _id: new ObjectID(),
-    text: "First test todo"
+    text: "First test todo",
+    _creator: userOneId
   },
   {
     _id: new ObjectID(),
     text: "Second test todo",
     completed: true,
-    completedAt: 333
+    completedAt: 333,
+    _creator: userTwoId
   }
 ];
 

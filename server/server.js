@@ -35,11 +35,17 @@ COMPLETE Module(with all the other property like '_id', 'completed' and so on) B
 Route we need to cakk 'app.post()', the 'post' method take the URL as first argument and the Callback Function
 as second argument that gets called with the 'req' and 'res' Objects. Now we need to GET the BODY Data that got
 sent from the CLIENT and for doing this we have to use the 'body-parser' module we just downloaded, 'body-parser'
-is going to take our JSON and CONVERT it into an Object ATTACHING it onto this 'req'(request) Object  */
-app.post("/todos", (req, res) => {
+is going to take our JSON and CONVERT it into an Object ATTACHING it onto this 'req'(request) Object.
+By ADDING the 'authenticate' MIDDLEWARE we make this "/todos" Route PRIVATE, so now with this in place we have
+ACCESS to the 'user' and the 'token' that was used and ALL of that is configured inside the 'authenticate.js' 
+file, so we can find the 'user' and the 'token' inside THAT file. So NOW inside THIS "POST /todos' Route we can
+SET the '_creator' property when we make our NEW 'todo' */
+app.post("/todos", authenticate, (req, res) => {
   //console.log(req.body); // This is the body that gets STORED by 'body-parser'
   var todo = new Todo({
-    text: req.body.text
+    text: req.body.text,
+    // This below is the '_id' of the CREATOR of the 'todo' pretty much
+    _creator: req.user._id
   });
 
   todo.save().then(
@@ -52,8 +58,13 @@ app.post("/todos", (req, res) => {
   );
 });
 
-app.get("/todos", (req, res) => {
-  Todo.find().then(
+app.get("/todos", authenticate, (req, res) => {
+  /* In this case we're looking for 'todo' where the '_creator' property of a 'todo' EQUALS the '_id' of the USER 
+  that is CURRENTLY authenticated(so pretty much an AUTHENTICATED user will be able to fetch ONLY the 'todo' that
+  he has created an not ALL the 'todo' that we've inside our Database) */
+  Todo.find({
+    _creator: req.user._id
+  }).then(
     todos => {
       /* This 'todos' that we're passing is an ARRAY and when we pass BACK an Array we're kind of LOCKING ourself
     down because if for example we want to ADD another property we CAN'T because we have an Array. The BETTER
@@ -72,8 +83,12 @@ app.get("/todos", (req, res) => {
   );
 });
 
-// CHALLENGE
-app.get("/todos/:id", (req, res) => {
+/* The FIRST thing we need to DO to make this Route below PRIVATE is to ADD the 'authenticate' MIDDLEWARE, in
+this way we'll make sure that the USER is logged in and is going to give us ACCESS to the 'user' and 'token'
+properties VIA the 'req'(request) Object */
+app.get("/todos/:id", authenticate, (req, res) => {
+  /* This 'id' below is pretty much the 'id' we ADD in the URL http request so the one that goes in place of the
+  ':id' we have inside the Route "/todos/:id" */
   var id = req.params.id;
 
   /* This code will FIRE if we pass an INVALID 'ObjectID'(so when the VALUE is in a DIFFERENT format,for example
@@ -84,7 +99,13 @@ app.get("/todos/:id", (req, res) => {
     return res.status(404).send();
   }
 
-  Todo.findById(id)
+  /* Here we're QUERYING our Database by the '_id'(that is the 'id' we have defined above,the one we pass inside
+  the URL) property AND the '_creator' property(so the '_id' of the USER that just got AUTHENTICATED,so the user
+  that LOGGED IN) */
+  Todo.findOne({
+    _id: id,
+    _creator: req.user._id
+  })
     .then(todo => {
       if (!todo) {
         // This error will be thrown when we pass a VALID 'ObjectID' BUT it DOESN'T math ANY of our Document
@@ -102,7 +123,7 @@ app.get("/todos/:id", (req, res) => {
     });
 });
 
-app.delete("/todos/:id", (req, res) => {
+app.delete("/todos/:id", authenticate, (req, res) => {
   // 'params' is where ALL our URL parameters are STORED, and THEN we get them by value
   var id = req.params.id;
 
@@ -111,7 +132,14 @@ app.delete("/todos/:id", (req, res) => {
     return res.status(404).send();
   }
 
-  Todo.findByIdAndRemove(id)
+  Todo.findOneAndRemove({
+    // We're setting this 'id' property EQUAL to the 'id' we defined above
+    _id: id,
+    /* Remember that we can ACCESS this 'req.user._id' property because we're AUTHENTICATED(so because by using
+    the 'authenticate' MIDDLEWARE we have ACCESS to these information,so we've access to the 'user' and ALL his
+    properties) */
+    _creator: req.user._id
+  })
     .then(todo => {
       if (!todo) {
         return res.status(404).send();
@@ -125,7 +153,7 @@ app.delete("/todos/:id", (req, res) => {
 });
 
 // 'patch' is WHAT we use when we want to UPDATE a Resource
-app.patch("/todos/:id", (req, res) => {
+app.patch("/todos/:id", authenticate, (req, res) => {
   var id = req.params.id;
   /* THIS is the reason why we downloaded and added the 'lodash' package. In this 'body' is where we'll STORE 
   our UPDATES, so if we want to SET the 'text' of one of our 'todo' to something ELSE we would make a 'patch'
@@ -180,7 +208,14 @@ app.patch("/todos/:id", (req, res) => {
   terminal) and is called just 'new'(it has SIMILAR functionality to 'returnOriginal' it just has a DIFFERENT
   name because that's what the mongoose developers chose to use), so now with this QUERY in place we're DONE,
   we can attach a 'then' callback and a 'catch' callback to handle our SUCCESS and ERROR code */
-  Todo.findByIdAndUpdate(id, { $set: body }, { new: true })
+  Todo.findOneAndUpdate(
+    {
+      _id: id,
+      _creator: req.user._id
+    },
+    { $set: body },
+    { new: true }
+  )
     .then(todo => {
       // IF the 'todo' DOESN'T exist we send this '404'
       if (!todo) {

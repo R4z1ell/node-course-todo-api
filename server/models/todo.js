@@ -26,6 +26,14 @@ var Todo = mongoose.model("Todo", {
   completedAt: {
     type: Number,
     default: null
+  },
+  _creator: {
+    /* Inside this 'type' property we're storing the '_id' of the USER that is creating a NEW 'todo' and we can
+    have ACCESS to the VALUE of this '_id' with the following line of code 'mongoose.Schema.Types.ObjectId'. So
+    pretty much to get the '_id' VALUE we have to get ACCESS to the 'ObjectId' CONSTRUCTOR of MONGOOSE(mongoose
+    uses this 'Constructor' as a TYPE also) */
+    type: mongoose.Schema.Types.ObjectId,
+    required: true
   }
 });
 

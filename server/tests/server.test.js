@@ -24,6 +24,7 @@ describe("POST /todos", () => {
 
     request(app)
       .post("/todos")
+      .set("x-auth", users[0].tokens[0].token)
       // This Object INSIDE the 'send' method is going to be CONVERTED in JSON by 'supertest'
       .send({ text })
       .expect(200)
@@ -53,6 +54,7 @@ describe("POST /todos", () => {
   it("should not create todo with invalid body data", done => {
     request(app)
       .post("/todos")
+      .set("x-auth", users[0].tokens[0].token)
       .send({})
       .expect(400)
       .end((err, res) => {
@@ -75,9 +77,10 @@ describe("GET /todos", () => {
   it("should get all todos", done => {
     request(app)
       .get("/todos")
+      .set("x-auth", users[0].tokens[0].token)
       .expect(200)
       .expect(res => {
-        expect(res.body.todos.length).toBe(2);
+        expect(res.body.todos.length).toBe(1);
       })
       /* In THIS case there is no need to pass a FUNCTION to this 'end' method like we did above because we're
       not doing  anything asynchronously */
@@ -91,11 +94,26 @@ describe("GET /todos/:id", () => {
       /* The '_id' is an 'ObjectID' so we NEED a way to CONVERT it into a STRING, and we can do this with the
       'toHexString' method that will return our 'ObjectID' as a 24byte STRING representation */
       .get(`/todos/${todos[0]._id.toHexString()}`)
+      /* Here below we're providing the 'token' for the FIRST user(the first OBJECT stored in the 'users' ARRAY
+      inside the 'seed.js' file pretty much) which is the OWNER of the 'todo' we're trying to FETCH from our 
+      Database */
+      .set("x-auth", users[0].tokens[0].token)
       .expect(200)
-      // This below is a 'COMMON Expect'
+      // This below is a 'CUSTOM Expect' Call
       .expect(res => {
         expect(res.body.todo.text).toBe(todos[0].text);
       })
+      .end(done);
+  });
+
+  it("should not return todo doc created by other user", done => {
+    request(app)
+      /* In this TEST we're trying to FETCH the SECOND 'todo' item(and that's why we're using 'todos[1]' below) 
+      BUT while be authenticated as the FIRST user(and this is why we have 'users[0].tokens[0].token' below) */
+      .get(`/todos/${todos[1]._id.toHexString()}`)
+      .set("x-auth", users[0].tokens[0].token)
+      // For this reason we EXPECT a 404 and that will make our test PASS
+      .expect(404)
       .end(done);
   });
 
@@ -103,11 +121,14 @@ describe("GET /todos/:id", () => {
   we're converting it to a REAL 'id' so to a STRING) BUT this 'id' will NOT be present in our Database and so 
   we will throw a 404 status code error */
   it("should return 404 if todo not found", done => {
-    // Here below we're created a new 'ObjectID' and then CONVERTING it to a STRING
+    /* Here below we're created a new 'ObjectID' and then CONVERTING it to a STRING, so we're creating a RANDOM
+    'ObjectID' that will NOT be present in our Database, so when we use it down below will FAIL and our 404 
+    expected error will be valid and so our whole TEST will PASS just like we want */
     var hexId = new ObjectID().toHexString();
 
     request(app)
       .get(`/todos/${hexId}`)
+      .set("x-auth", users[0].tokens[0].token)
       .expect(404)
       .end(done);
   });
@@ -117,7 +138,10 @@ describe("GET /todos/:id", () => {
   '123' of course DOESN'T pass that CRITERIA */
   it("should return 404 for non-object ids", done => {
     request(app)
+      /* This id we're passing in, so the '123' is NOT going to be inside our Database and is also NOT a VALID
+      'ObjectID' because as we're already seen a valid 'ObjectID' has a very SPECIFIC structure(see below) */
       .get("/todos/123")
+      .set("x-auth", users[0].tokens[0].token)
       .expect(404)
       .end(done);
   });
@@ -129,6 +153,9 @@ describe("DELETE /todos/:id", () => {
 
     request(app)
       .delete(`/todos/${hexId}`)
+      /* With this in place we've SUCCESSFULLY authenticated as the SECOND user who does indeed have access to
+      the SECOND 'todo' because was created by him */
+      .set("x-auth", users[1].tokens[0].token)
       // We're expecting to get a 200 because this 'hexId' is going to EXIST in our Database
       .expect(200)
       .expect(res => {
@@ -150,6 +177,39 @@ describe("DELETE /todos/:id", () => {
       });
   });
 
+  /* This TEST below should PASS if the user who is currently logged in is NOT the one who created the 'todo' 
+  that we're trying to REMOVE, returning us a 404 */
+  it("should not remove a todo created by other user", done => {
+    var hexId = todos[0]._id.toHexString();
+
+    request(app)
+      .delete(`/todos/${hexId}`)
+      /* In this case we're trying to delete the FIRST 'todo'(that why we have the 'todos[0]' inside the 'hexId'
+      variable here above) while being logged in as the SECOND user, and we know that this should NOT be 
+      possible */
+      .set("x-auth", users[1].tokens[0].token)
+      .expect(404)
+      .end((err, res) => {
+        if (err) {
+          // We pass the 'err' directly INSIDE the 'done function so that it gets rendered by MOCHA
+          return done(err);
+        }
+
+        /* The Document we're trying to find here below is the one that SHOULD have gotten deleted above BUT 
+        it has NOT been removed because AGAIN we're logged in as a DIFFERENT user from the one who created that
+        'todo' */
+        Todo.findById(hexId)
+          .then(todo => {
+            /* Here we're expecting our 'todo'(so the one we tried to REMOVE) to STILL exist, this because our
+            ATTEMPT to remove the FIRST 'todo' should have FAILED because we're NOT logged in as the user who
+            CREATED that 'todo', and so we EXPECT this FIRST 'todo' to EXIST */
+            expect(todo).toExist();
+            done();
+          })
+          .catch(e => done(e));
+      });
+  });
+
   /* In this case this TEST is going to be successfull, because we DON'T have any 'todos' in our Database with 
   THAT specific 'hexId'(that we're creating here below) and so the 404 status will be CORRECT and our TEST will 
   PASS correctly */
@@ -158,6 +218,7 @@ describe("DELETE /todos/:id", () => {
 
     request(app)
       .delete(`/todos/${hexId}`)
+      .set("x-auth", users[1].tokens[0].token)
       .expect(404)
       .end(done);
   });
@@ -168,6 +229,7 @@ describe("DELETE /todos/:id", () => {
   it("should return 404 if ObjectID is invalid", done => {
     request(app)
       .delete("/todos/123")
+      .set("x-auth", users[1].tokens[0].token)
       .expect(404)
       .end(done);
   });
@@ -180,6 +242,7 @@ describe("PATCH /todos/:id", () => {
 
     request(app)
       .patch(`/todos/${hexId}`)
+      .set("x-auth", users[0].tokens[0].token)
       .send({
         completed: true,
         text
@@ -193,12 +256,28 @@ describe("PATCH /todos/:id", () => {
       .end(done);
   });
 
+  it("should not update the todo created by other user", done => {
+    var hexId = todos[0]._id.toHexString();
+    var text = "this should be the new text";
+
+    request(app)
+      .patch(`/todos/${hexId}`)
+      .set("x-auth", users[1].tokens[0].token)
+      .send({
+        completed: true,
+        text
+      })
+      .expect(404)
+      .end(done);
+  });
+
   it("should clear completedAt when todo is not completed", done => {
     var hexId = todos[1]._id.toHexString();
     var text = "this should be the new text!!";
 
     request(app)
       .patch(`/todos/${hexId}`)
+      .set("x-auth", users[1].tokens[0].token)
       .send({
         completed: false,
         text
@@ -329,7 +408,7 @@ describe("POST /users/login", () => {
 
         User.findById(users[1]._id)
           .then(user => {
-            expect(user.tokens[0]).toInclude({
+            expect(user.tokens[1]).toInclude({
               access: "auth",
               token: res.headers["x-auth"]
             });
@@ -360,10 +439,10 @@ describe("POST /users/login", () => {
 
         User.findById(users[1]._id)
           .then(user => {
-            /* Here we expect that the LENGTH of the "tokens" array will be zero because of coure we DON'T have
-            an "access"(because we're NOT authenticated) property and we ALSO don't have a 'token'(because the 
-            'password' we passed in was INVALID) property, so in the end we expect to have an EMPTY Array */
-            expect(user.tokens.length).toBe(0);
+            /* Here we expect that the LENGTH of the "tokens" array will be ONE because the DEFAULT length of 
+            the 'tokens' array goes from ZERO(in the DEFAULT case when the 'tokens' Array is EMPTY) to ONE(in 
+            THIS case because we ADDED this item and so the LENGTH of the 'tokens' Array will be one) */
+            expect(user.tokens.length).toBe(1);
             done();
           })
           .catch(e => done(e));
